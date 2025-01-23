@@ -11,7 +11,9 @@ This hardware is designed to connect to an NMEA2000 network for power and networ
 
 The base software transmits the follong NMEA2000 PIDs:
 
---- TBD ----
+PGN 127513 "Battery Configuration Status"
+
+PGN 127508 "Battery Status"
 
 Optionally the hardware/software may also connect with a SignalK server via a wifi. 
 
