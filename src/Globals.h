@@ -3,12 +3,19 @@
 // unique chip id
 extern int32_t chipId;
 
+// instance to use for N2K messages
+extern int32_t n2kInstance;
+
 // used for N2K Messages
 extern double AltRPM;
 extern double EngRPM;
 extern double OilPres;
 extern double AltVolts;
 extern double HouseVolts;
+extern double BattVolts;
+extern double ShuntVolts;
+extern double ShuntResistence;
+extern double BattAmps;
 extern double FuelLevel;
 extern double B1A3;
 extern double B2A0;

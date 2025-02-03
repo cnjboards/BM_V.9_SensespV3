@@ -6,17 +6,43 @@
 #include <N2KDeviceList.h>
 #include "EngineMonitorN2K.h"
 
+
+/* need the following data pids
+ * from 127508 - Battery Status
+ * \param BatteryInstance     BatteryInstance.
+ * \param BatteryVoltage      Battery voltage in V
+ * \param BatteryCurrent      Current in A
+ * \param BatteryTemperature  Battery temperature in K. Use function
+  bool ParseN2kPGN127508(const tN2kMsg &N2kMsg, unsigned char &BatteryInstance, double &BatteryVoltage, double &BatteryCurrent,
+                     double &BatteryTemperature, unsigned char &SID);
+
+
+ * These are all settings that get set by the user
+ * from 127513 - Battery Configuration Status
+ * \param BatInstance          BatteryInstance
+ * \param BatType              Type of battery. See \ref tN2kBatType
+ * \param SupportsEqual        Supports equalization. See \ref tN2kBatEqSupport
+ * \param BatNominalVoltage    Battery nominal voltage. See \ref tN2kBatNomVolt
+ * \param BatChemistry         Battery Chemistry See \ref tN2kBatChem
+ * \param BatCapacity          Battery capacity in Coulombs. Use AhToCoulombs,
+ *                             if you have your value in Ah.
+ * \param BatTemperatureCoefficient Battery temperature coefficient in %
+ * \param PeukertExponent      Peukert Exponent
+ * \param ChargeEfficiencyFactor      Charge efficiency factor
+  bool ParseN2kPGN127513(const tN2kMsg &N2kMsg, unsigned char &BatInstance, tN2kBatType &BatType, tN2kBatEqSupport &SupportsEqual,
+                     tN2kBatNomVolt &BatNominalVoltage, tN2kBatChem &BatChemistry, double &BatCapacity, int8_t &BatTemperatureCoefficient,
+				double &PeukertExponent, int8_t &ChargeEfficiencyFactor);
+*/
+
+
 // Forward declarations
-void SendN2kEngine( void );
+void SendN2kBattery( void );
+void SendN2kBatteryConfig( void );
 void setupN2K( void );
-void SendN2kTemperature( void );
 
 // Set the information for other bus devices, which messages we support
-const unsigned long TransmitMessages[] PROGMEM = { 127488L, // Engine Rapid / RPM
-                                                   127489L, // Engine Dynamic, Oil Pressure and temperature
-                                                   127505L, // Fluid Level
-                                                   127508L, // Battery Status
-                                                   130316L, // Temperature values (or alternatively 130311L or 130312L but they are depricated)                                                   
+const unsigned long TransmitMessages[] PROGMEM = { 127508L, // Battery Status
+                                                   127513L, // Battery Configuration Status
                                                    0
                                                  };
 
@@ -26,11 +52,8 @@ const unsigned long TransmitMessages[] PROGMEM = { 127488L, // Engine Rapid / RP
 // Setup periods according PGN definition (see comments on IsDefaultSingleFrameMessage and
 // IsDefaultFastPacketMessage) and message first start offsets. Use a bit different offset for
 // each message so they will not be sent at same time.
-tN2kSyncScheduler TemperatureScheduler(false,1000,2000);
-tN2kSyncScheduler EngineRapidScheduler(false,750,500);
-tN2kSyncScheduler EngineDynamicScheduler(false,500,1200);
-tN2kSyncScheduler BatteryStatusScheduler(false,1000,1200);
-tN2kSyncScheduler FuelTankLevelScheduler(false,500,500);
+tN2kSyncScheduler BatteryStatusScheduler(false,500,2000);
+tN2kSyncScheduler BatteryConfigScheduler(false,1000,500);
 tN2kDeviceList *locN2KDeviceList;
 uint8_t n2kConnected = 0;
 
@@ -39,12 +62,10 @@ uint8_t n2kConnected = 0;
 // See NMEA2000.SetOnOpen(OnN2kOpen); on setup()
 void OnN2kOpen() {
   // Start schedulers now.
-  TemperatureScheduler.UpdateNextTime();
+  BatteryConfigScheduler.UpdateNextTime();
   BatteryStatusScheduler.UpdateNextTime();
-  EngineRapidScheduler.UpdateNextTime();
-  EngineDynamicScheduler.UpdateNextTime();
-  FuelTankLevelScheduler.UpdateNextTime();
-} // OnN2kOpen
+// OnN2kOpen
+} // end OnN2KOpen
 
 // setup for N2k
 void setupN2K() {
@@ -82,97 +103,39 @@ void setupN2K() {
 } // end setupN2K
 
 // *****************************************************************************
-double ReadCabinTemp() {
-  int tmptmp=random(0,300);
-  return CToKelvin((float)(tmptmp)/10); // Read here the true temperature e.g. from analog input
-}
-
-// *****************************************************************************
-double ReadWaterTemp() {
-  int tmptmp=random(100,900);
-  return CToKelvin((float)(tmptmp)/10); // Read here the true temperature e.g. from analog input
-}
-
-// *****************************************************************************
-void SendN2kEngine() {
-  tN2kMsg N2kMsg;
-  tN2kEngineDiscreteStatus1 Status1=0;
-  tN2kEngineDiscreteStatus2 Status2=0;
-  if ( EngineRapidScheduler.IsTime() ) {
-    EngineRapidScheduler.UpdateNextTime();
-    SetN2kEngineParamRapid ( N2kMsg , 0 , EngRPM, N2kDoubleNA, N2kInt8NA );
-    NMEA2000.SendMsg(N2kMsg);
-  } // endif
-
-  if ( EngineDynamicScheduler.IsTime() ) {
-    EngineDynamicScheduler.UpdateNextTime();
-    
-    // if this bit is set then check engine alarm pops up on the screen
-    // this is double reversed, in PCB h/w and on the engine.
-    // low at the terminal is high in the processor
-    // low at the terminal is alarm state.
-    Status1.Bits.CheckEngine = chkEng;
-    Status2.Bits.MaintenanceNeeded = 0;
-
-    // use engine temp as oil temp for now
-    SetN2kEngineDynamicParam ( N2kMsg , 0 , OilPres, engineBlockTemp, engineCoolantTemp, AltVolts,
-                               N2kDoubleNA , N2kDoubleNA , N2kDoubleNA , N2kDoubleNA , N2kInt8NA , N2kInt8NA , Status1 , Status2 );
-
-    NMEA2000.SendMsg(N2kMsg);
-  } // endif
-
-} // end sendn2kenginerapid
-
-// *****************************************************************************
 void SendN2kBattery() {
   tN2kMsg N2kMsg;
   if ( BatteryStatusScheduler.IsTime() ) {
     BatteryStatusScheduler.UpdateNextTime();
-    SetN2kDCBatStatus(N2kMsg, 0, HouseVolts, 0/*BatteryCurrent=N2kDoubleNA*/,
-                     0/*BatteryTemperature=N2kDoubleNA*/, 0xff);
+    BattAmps = ShuntVolts / ShuntResistence;
+    SetN2kDCBatStatus(N2kMsg, n2kInstance, (float)BattVolts, (float)BattAmps,          
+                     0/*BatteryTemperature=N2kDoubleNA*/, 0xff /* SID ??*/);
+    NMEA2000.SendMsg(N2kMsg);
+  } // endif
+
+} // end SendN2kBattery
+#define AhToCoulombs 
+// *****************************************************************************
+void SendN2kBatteryConfig() {
+  tN2kMsg N2kMsg;
+  if ( BatteryConfigScheduler.IsTime() ) {
+    BatteryConfigScheduler.UpdateNextTime();
+    SetN2kBatConf(N2kMsg,  n2kInstance, N2kDCbt_Flooded /* flooded */, N2kDCES_No /* no equal */,
+                     N2kDCbnv_12v, N2kDCbc_LeadAcid, AhToCoulomb(200) /* capacity in AH */, 10 /* temp coeff ??*/,
+				1.2 /* peukert exp */, 80 /*charge eficiency */);    
     NMEA2000.SendMsg(N2kMsg);
   } // endif
 
 } // end SendN2kBattery
 
-// *****************************************************************************
-void SendN2kTemperature() {
-  tN2kMsg N2kMsg;
-
-  if ( TemperatureScheduler.IsTime() ) {
-    TemperatureScheduler.UpdateNextTime();
-    //SetN2kTemperature(N2kMsg, 1, 1, N2kts_MainCabinTemperature, ReadCabinTemp());
-    SetN2kTemperatureExt(N2kMsg, 255, 1, N2kts_EngineRoomTemperature, engineRoomTemp, N2kDoubleNA);
-    NMEA2000.SendMsg(N2kMsg);
-    delay(50); // probably not neccessary
-    SetN2kTemperatureExt(N2kMsg, 255, 1, N2kts_ExhaustGasTemperature, engineExhaustTemp, N2kDoubleNA);
-    NMEA2000.SendMsg(N2kMsg);
-  } // endif
-
-} // SendN2kTemperature
-
-// *****************************************************************************
-void SendN2kTankLevel() {
-  tN2kMsg N2kMsg;
-
-  if ( FuelTankLevelScheduler.IsTime() ) {
-    // fuel level
-    FuelTankLevelScheduler.UpdateNextTime();
-    SetN2kFluidLevel(N2kMsg, 0, N2kft_Fuel, FuelLevel, 75.7);
-    NMEA2000.SendMsg(N2kMsg);
-  } // end if
-} // end send2ktanklevel
 
 // does all N2K send/recieve processing. Send message cadence is controlled with timers.
 // This helper is called on a regular timer, Send messages are senbt when thier 
 // specifiec timer is done.
 void doN2Kprocessing(){
-  SendN2kTemperature();
-  SendN2kEngine();
   SendN2kBattery();
-  SendN2kTankLevel();
+  SendN2kBatteryConfig();
   NMEA2000.ParseMessages();
   // record the number of devices on n2k bus
   n2kConnected = locN2KDeviceList->Count();
 } // end doN2kprocessing
-
