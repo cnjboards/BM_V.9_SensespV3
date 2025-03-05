@@ -1,7 +1,8 @@
 # BM_SenseEsp_V.9
 
-|<img src="https://github.com/user-attachments/assets/6dd8ae96-085b-44be-a9f0-b0a2c5a6a411" width="400" height="300">||<img src="https://github.com/user-attachments/assets/af1330a7-a50f-4b4d-aa2b-fa7107b0a245" width="400" height="300">|
+|<img src="https://github.com/user-attachments/assets/6dd8ae96-085b-44be-a9f0-b0a2c5a6a411" width="400" height="300">|<img src="https://github.com/user-attachments/assets/af1330a7-a50f-4b4d-aa2b-fa7107b0a245" width="400" height="300">|
 |:-:|:-:|
+
 
 This repository contains example code for a Battery Monitor based on SensEsp V3.0.0. This is a single shunt battery monitor.
 
