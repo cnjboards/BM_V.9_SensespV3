@@ -1,10 +1,10 @@
 // if N2K enabled
-#include "EngineMonitorHardware.h"
+#include "BatteryMonitorHardware.h"
 #include "Globals.h"
 #include <NMEA2000_CAN.h>  // This will automatically choose right CAN library and create suitable NMEA2000 object
 #include <N2kMessages.h>
 #include <N2KDeviceList.h>
-#include "EngineMonitorN2K.h"
+#include "BatteryMonitorN2K.h"
 
 
 /* need the following data pids

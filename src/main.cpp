@@ -28,8 +28,8 @@
 #include "INA226.h"
 
 // specific to this design
-#include "EngineMonitorHardware.h"
-#include "EngineMonitorN2K.h"
+#include "BatteryMonitorHardware.h"
+#include "BatteryMonitorN2K.h"
 
 using namespace sensesp;
 
