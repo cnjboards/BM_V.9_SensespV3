@@ -27,7 +27,7 @@ The base software transmits the following Signalk paths:
 This project is a work in progress. Currently the repository contains a functional example 
 for a Shunt Monitor using Sensesp V3.
 
-The hardware can be found over here:
+The hardware for this projhect can be found over here:
 https://www.tindie.com/products/cnjboards/esp32-dc-power-monitor-with-nmea2000-interface/
 
 Enjoy
